@@ -49,6 +49,20 @@ def test_lenient_mode_skips_bad_record_and_keeps_good_one(tmp_path, caplog):
     assert "NEM1201009" in sql
 
 
+def test_non_csv_input_file_exits_nonzero_and_reports_error(tmp_path, caplog):
+    # Arrange
+    input_path = tmp_path / "sample.nem12"
+    input_path.write_text("100,NEM12\n", encoding="utf-8")
+    out_path = tmp_path / "out.sql"
+    # Action
+    with caplog.at_level(logging.INFO):
+        exit_code = main([str(input_path), "-o", str(out_path)])
+    # Assert
+    assert exit_code == 1
+    assert f"input file must be a .csv file: {input_path}" in caplog.text
+    assert not out_path.exists()
+
+
 def test_missing_input_file_exits_nonzero_and_reports_error(tmp_path, caplog):
     # Arrange
     missing_input = tmp_path / "does_not_exist.csv"

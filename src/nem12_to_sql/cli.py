@@ -47,6 +47,11 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _validate_input_file(path: Path) -> None:
+    if path.suffix.lower() != ".csv":
+        raise ValueError(f"input file must be a .csv file: {path}")
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(
@@ -60,12 +65,16 @@ def main(argv: list[str] | None = None) -> int:
     row_count = 0
 
     try:
+        _validate_input_file(args.input_file)
         with args.input_file.open("r", encoding="utf-8", newline="") as in_stream:
             output_stream = args.output.open("w", encoding="utf-8") if args.output else sys.stdout
             readings = parser.parse(in_stream)
             row_count = generate_insert_statements(
                 readings, output_stream, batch_size=args.batch_size, no_upsert=args.no_upsert
             )
+    except ValueError as exc:
+        logger.error("%s", exc)
+        return 1
     except FileNotFoundError:
         logger.error("input file not found: %s", args.input_file)
         return 1

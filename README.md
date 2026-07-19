@@ -144,7 +144,7 @@ The expected outcome is to parse the `200` and `300` records from NEM12 csv file
 
 ### Validations
 - THe validation 
-    - Rejects input file format except .csv file
+    - Rejects input file format other .csv file
     - Rejects malformed `200` records, eg. missing fields, invalid interval length, invalid NMI format.
     - Eejects malformed `300` records, eg. bad date, wrong value count, invalid consumption values).
     - The above supports in strict mode (default), OR tolerant mode (`--lenient`) with warnings only for malformed `300` records.
