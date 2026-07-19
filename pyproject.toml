@@ -1,0 +1,28 @@
+[project]
+name = "nem12-to-sql"
+version = "0.1.0"
+description = "Streams a NEM12 meter data file into batched SQL upserts for the meter_readings table"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6", "black>=24.0"]
+
+[project.scripts]
+nem12-to-sql = "nem12_to_sql.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.black]
+line-length = 100
