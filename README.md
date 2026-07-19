@@ -47,9 +47,6 @@ python3 -m venv .venv
 
 # plain INSERT (no upsert)
 .venv/bin/python -m nem12_to_sql tests/fixtures/sample_nem12.csv -o out.sql --no-upsert
-
-# verbose logging
-.venv/bin/python -m nem12_to_sql tests/fixtures/sample_nem12.csv -o out.sql -v
 ```
 
 ## Tests
