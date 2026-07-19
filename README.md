@@ -1,4 +1,4 @@
-# nem12-to-sql
+# Flo Energy Assignment (nem12-to-sql)
 
 Streams a NEM12 meter data file and generates batched SQL `INSERT ... ON CONFLICT` statements for
 the `meter_readings` table:
@@ -34,7 +34,7 @@ python3 -m venv .venv
 .venv/bin/python -m nem12_to_sql path/to/input.nem12 -o out.sql --batch-size 5000
 ```
 
-Run against the assessment's sample data:
+**Run against the assessment's sample data:**
 
 ```bash
 .venv/bin/python -m nem12_to_sql tests/fixtures/sample_nem12.csv -o out.sql
@@ -62,7 +62,7 @@ Run against the assessment's sample data:
 
 ### 100 Record: The Envelope (Header)
 
-This is the file cover sheet. It tells the system, "Hey, I am a NEM12 file. Here is who sent me, who is supposed to get me, and the exact date and time I was created." It appears exctly once, at the very top of the file.
+This is the file cover sheet. It tells the system, _"Hey, I am a NEM12 file. Here is who sent me, who is supposed to get me, and the exact date and time I was created."_ It appears exctly once, at the very top of the file.
 
 ```
 eg. 100,NEM12,200506081149,UNITEDDP,NEMMCO
@@ -76,7 +76,7 @@ eg. 200,NEM1201009,E1E2,1,E1,N1,01009,kWh,30,20050610
 ```
 
 ### 300 Record: The Daily Log (Interval Data)
-This is the actual data payload. This is the child of the 200 record. It says, "For this specific date, here is a long string of numbers showing exactly how much electricity was used during every single interval of that day." (e.g., 48 numbers for 30-minute intervals). It also includes a quick "Quality Flag" (like 'A' for Actual or 'E' for Estimated data). One 300 record appears for every single day of data being provided under that specific 200 record.
+This is the actual data payload. This is the child of the 200 record. It says, _"For this specific date, here is a long string of numbers showing exactly how much electricity was used during every single interval of that day."_ (e.g., 48 numbers for 30-minute intervals). It also includes a quick "Quality Flag" (like 'A' for Actual or 'E' for Estimated data). One 300 record appears for every single day of data being provided under that specific 200 record.
 
 ```
 eg. 300,20050301,0,0,0,0,0,0,0,0,0,0,0,0,0.461,0.810,0.568,1.234,1.353,1.507,1.344,1.773,0.848,1.271,0.895,1.327,1.013,1.793,0.988,0.985,0.876,0.555,0760,0.938,0.566,0.512,0.970,0.760,0.731,0.615,0.886,0.531,0.774,0.712,0.598,0670,0.587,0.657,0.345,0.231,A,,,20050310121004,20050310182204
@@ -97,7 +97,7 @@ eg. 500,O,S01009,20050310121004,
 ```
 
 ### 900 Record: The Stop Sign (End of Data)
-This is file closer. It tells the parsing software, "That's all! Do not look for any more data after this line." This appears exactly once, at the absolute bottom of the file.
+This is file closer. It tells the parsing software, _"That's all! Do not look for any more data after this line."_ This appears exactly once, at the absolute bottom of the file.
 
 ```
 eg. 900
@@ -124,6 +124,7 @@ The expected outcome is to parse the `200` and `300` records from NEM12 csv file
 - The parser is a generator over the input file handle — it never loads the whole file into memory,
   so throughput scales with disk I/O, not RAM, regardless of file size.
 
+
 ## Implementation Details
 
 - I built this as a streaming pipeline so it can handle files of any size without loading everything into memory — the parser reads the file line by line and yields readings one at a time, instead of building a big list upfront.
@@ -140,7 +141,6 @@ The expected outcome is to parse the `200` and `300` records from NEM12 csv file
 
 - In the main function, I only catch the errors I actually expect, like a missing file or a bad NEM12 record, and turn those into a clean error message and exit code; anything unexpected just crashes loudly instead of being hidden.
 
-- I made main() return an integer instead of calling sys.exit directly, so I can call it from tests and check the result without the process actually exiting.
 
 ### Validations
 - THe validation 
@@ -171,6 +171,7 @@ The expected outcome is to parse the `200` and `300` records from NEM12 csv file
 
 - For a timed, correctness-focused assignment, Python's lack of a build step and low syntactic overhead (no type declarations, no checked exceptions) means more time goes into handling edge cases like malformed records and batching, rather than fighting a compiler — though Go or Java would likely win on throughput if this became a long-running, high-volume service.
 
+
 ## Q2. What I'd do differently with more time
 
 - The biggest gap: I generate SQL text, not load it. For production, I'd swap in a COPY-based or driver-level path (execute_values, real COPY) — much faster than INSERTs at volume. Scoped out here since the brief only asked for SQL generation.
@@ -189,13 +190,14 @@ The expected outcome is to parse the `200` and `300` records from NEM12 csv file
 
 - Introduce CI/CD. I left it out because the assessment explicitly said no infra/deployment code, but for a real repo that's the obvious next step.
 
+
 ## Q3. Rationale for the design choices made
 
-- Streaming generator, not parse-then-process. `stream_readings()` yields one `MeterReading` at a time; `write_inserts()` holds only one batch in memory. Peak memory is `O(batch_size)`, not `O(file size)` — needed to handle very large files without a multi-GB-resident process.
+- Streaming over parse-then-process. NEM12 files can be very large, so loading the whole file into memory before writing SQL would scale poorly. Instead, `NEM12Parser.parse()` yields one `MeterReading` at a time as it reads line by line, and `generate_insert_statements()` buffers only a single batch before flushing to disk. Peak memory stays `O(batch_size)` rather than `O(file size)`, which keeps the process viable on multi-GB inputs without needing a machine-sized RAM budget.
 
-- I wanted to keep the code design small and simple with just thre modules cli, parser, sql writer. This makes the design small, easy to understand, replacable. Make it easy for testing.
+- Keep it simple with just three modules cli, parser, sql writer. This makes the design small, easy to understand, replacable. Make it easy for testing.
 
-- Upsert (`ON CONFLICT ... DO UPDATE`) over plain insert or `DO NOTHING`. The schema's `UNIQUE(nmi, timestamp)` collides when the same NMI has multiple registers (`E1`/`E2`) landing on the same timestamps — there's no column to disambiguate, so some conflict policy is unavoidable. Upsert also makes re-processing a corrected file idempotent, instead of requiring a delete-and-reload or a hard failure on duplicate keys.
+- Defaulting upsert (`ON CONFLICT ... DO UPDATE`) over plain insert or `DO NOTHING`. The schema's `UNIQUE(nmi, timestamp)` collides when the same NMI has multiple registers (`E1`/`E2`) landing on the same timestamps. Upsert also makes re-processing a corrected file idempotent, instead of requiring a delete-and-reload or a hard failure on duplicate keys.
 
 - Strict by default to fail fast, `--lenient` opt-in for `300` interval-count mismatches only. Billing-adjacent data shouldn't silently swallow errors by default, but one bad line shouldn't block a whole batch either. Structural errors (unknown record type, orphan `300`, invalid NMI) always raise regardless — those mean the file isn't valid NEM12.
 

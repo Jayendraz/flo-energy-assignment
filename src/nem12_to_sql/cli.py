@@ -62,7 +62,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         with args.input_file.open("r", encoding="utf-8", newline="") as in_stream:
             output_stream = args.output.open("w", encoding="utf-8") if args.output else sys.stdout
-            readings = list(parser.parse(in_stream))
+            readings = parser.parse(in_stream)
             row_count = generate_insert_statements(
                 readings, output_stream, batch_size=args.batch_size, no_upsert=args.no_upsert
             )
